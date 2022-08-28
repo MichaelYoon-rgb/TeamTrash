@@ -1,0 +1,264 @@
+{% extends "./base.html" %}
+{% load static %}
+{% block style %}
+    <style> 
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0;  width: 85%; z-index: 100; }
+        #sidebar {
+            width: 25%; height: 96vh; z-index: 100; background-color: white;position: absolute; box-shadow: 5px 0px 20px 5px #888; margin: 2vh; margin-left: 0px; border-radius: 10px;border-top-left-radius: 0px;border-bottom-left-radius: 0px;
+
+        }
+        #sidebar::-webkit-scrollbar {
+            display: none;
+        }
+        #sidebar {
+            -webkit-touch-callout: none; /* iOS Safari */
+                -webkit-user-select: none; /* Safari */
+                -khtml-user-select: none; /* Konqueror HTML */
+                -moz-user-select: none; /* Old versions of Firefox */
+                    -ms-user-select: none; /* Internet Explorer/Edge */
+                        user-select: none; /* Non-prefixed version, currently
+                                            supported by Chrome, Edge, Opera and Firefox */
+            }
+
+        /* Hide scrollbar for IE, Edge and Firefox */
+        #sidebar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        #container {
+            padding-left: 15%;
+            width: 100%;
+            z-index: -1;
+        }
+        #background{
+            width: 100%; height: 100vh; z-index: -100; background-color: black; position: absolute;
+        }
+        #buttonContainer{
+
+            display: flex;
+            align-content: 'center';
+            justify-content: 'center';
+            
+
+        }
+        #overlay{
+            width: 100vw; height: 100vh; z-index: 1000; background-color: rgba(0,0,0,0.6); position: absolute; display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .overlayOption{
+            
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+            position: relative;
+            
+        }
+
+        .overlayOption:not(:last-child) {
+            border-right: 1px solid grey;
+            
+        }
+        @font-face {
+            font-family: classical;
+            src: "{% static 'Poppins-Medium.ttf' %}";
+        }
+        #niceFont{
+            font-family: classical;
+        }
+        .imageContainer{
+            margin: 10px;
+        }
+        .pickupContainer{
+            width: 100%; height: 150px; border-radius: 20; background-color: white; z-index: 1000; box-shadow: 0px 0px 12px 0.1px rgba(0,0,0,0.5); border-radius: 15px; margin-top: 20px;
+            display: 'flex'; flex-direction: row;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div id="container">
+        <div id="map"></div>
+    </div>
+    
+    <div id="sidebar" style="overflow: auto;">
+        <div class="d-grid gap-2 " style="padding: 30px;">
+            <button onclick="showOverlay()" class=" btn btn-dark btn-lg">
+                <strong>Create Pickup Location</strong>
+            </button>
+                {% for location in Locations %}
+                    <div class="pickupContainer" data-latitude="{{location.latitude}}" data-longitude="{{location.longitude}}">
+                        <div class="imageContainer">
+                            <img style="border-radius: 15px;"  src="https://maps.googleapis.com/maps/api/streetview?size=130x130&location={{location.latitude}},{{location.longitude}}
+                        &fov=80&heading=70&pitch=0&key=AIzaSyCR1rhvhy-HBhRNHGBwsVYyAF3U4oIg2l4">
+                        
+                        <span><small class="niceFont">{{location.latitude|truncatechars:6}}{{location.longitude|truncatechars:6}}</small></span>
+                        <span class="niceFont" style="justify-self: flex-end;">{{location.goal}} Tonnes</span>
+                        </div>
+                    </div>
+                {% endfor %}
+                
+        </div>
+        
+    </div>
+
+    <div id="background"></div>
+    <div id="overlay">
+        <div style="width: 70%; height: 50%; background-color:white; border-radius: 20px; display: flex; justify-content: space-around;">
+            <div class="overlayOption">
+                <div class="bi bi-geo-alt-fill" style="font-size: 15rem; margin-bottom: 30px;"></div>
+                <div class="niceFont" style="font-size: 2rem;">Location</div>
+                <div style="flex-direction: row;"> 
+                    <div style="color: lightblue" id="currentLocation">Use Current Location</div>
+                    <input id="autoCompleteSearch" type="text" size="50">
+                </div>
+            </div>
+            <div class="overlayOption">
+                <div class="bi bi-trash-fill" style="font-size: 15rem; margin-bottom: 30px;"></div>
+                <div class="niceFont" style="font-size: 2rem;">Goal</div>
+                <input type="number" id="goal" min="1">
+                <small>Tonnes</small>
+            </div>
+            <Button onclick="createObject()" class="btn btn-dark">Publish</Button>
+        </div>
+        
+    </div>
+    {% block overlay %}
+    {% endblock %}
+{% endblock %}
+
+{% block script %}
+<script>
+    var lat;
+    var lng;
+    function initialize() {
+        var input = document.getElementById('autoCompleteSearch');
+        autocomplete = new google.maps.places.Autocomplete(input);
+        google.maps.event.addListener(autocomplete, 'place_changed', function () {
+            var place = autocomplete.getPlace();
+            lat = place.geometry.location.lat();
+            lng = place.geometry.location.lng();
+            
+        });
+    }
+
+    google.maps.event.addDomListener(window, 'load', initialize);
+
+</script>
+<script>
+    function createObject(){
+        
+        $.ajax({
+            url: "{% url 'setLocations' %}",
+            data: {
+                'post': {'longitude': lng, 'latitude': lat, 'goal': document.getElementById('goal').value},
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+            type: 'post',
+            cache: false,
+            success: function (returned_values) {
+                document.getElementById("overlay").style.display = 'none'
+                },
+        });
+    }
+</script>
+<script>
+
+    var longitude;
+    var latitude;
+    
+    function getLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(showPosition);
+        } else {
+            alert("Geolocation is not supported by this browser.");
+        }
+    }
+
+    function showPosition(position) {
+        longitude = position.coords.longitude
+        latitude = position.coords.latitude
+        $.ajax({
+            url: "{% url 'setLocations' %}",
+            data: {
+                'post': {'longitude': longitude, 'latitude': latitude},
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+            type: 'post',
+            cache: false,
+            success: function (returned_values) {
+                console.log('success')         
+            },  
+        });
+    }
+</script>
+
+<script>
+    
+</script>
+<script>
+    window.onload = function(){
+        
+        
+        function clickHandlerOption(){ // declare a function that updates the state
+            getLocation()
+        }
+
+        var element = document.getElementById('currentLocation'); // grab a reference to your element
+        element.addEventListener('click', clickHandlerOption); // associate the function above with the click event
+
+        var element = document.getElementById('overlay'); // grab a reference to your element
+        function clickHandler(event){ // declare a function that updates the state
+            if (element !== event.target) return;
+            document.getElementById("overlay").style.display = 'none'
+            
+        }
+
+        
+        element.addEventListener('click', clickHandler); // associate the function above with the click event
+        
+        element.addEventListener('click', clickHandler); // associate the function above with the click event
+        
+        
+        
+    }
+
+    function showOverlay(){
+        document.getElementById("overlay").style.display = 'flex'
+    }
+</script>
+
+<script>
+
+    mapboxgl.accessToken = 'pk.eyJ1IjoibWljaGFlbDQ0NDQiLCJhIjoiY2w3Yno2ems1MDZtejN2cGdpbzBkaGx1dyJ9.iRYcgId0kTY2QAIAYVrP2A';
+    const map = new mapboxgl.Map({
+    container: 'map',
+    // Choose from Mapbox's core styles, or make your own style with Mapbox Studio
+    style: 'mapbox://styles/michael4444/cl7bzwsij004f15nqf74x334i',
+    zoom: 1.5,
+    center: [30, 50],
+    projection: 'globe'
+    });
+    const markers = []
+
+    
+    $.getJSON("{% url 'getLocations' %}", function(data, jqXHR){
+        
+        data.forEach(element => {
+            markers.push(new mapboxgl.Marker()
+            .setLngLat([
+                element.fields.longitude,element.fields.latitude
+            ])
+            .addTo(map));
+        });
+        
+        // do something with response
+    });
+</script>
+<script>
+    
+</script>
+{% endblock %}
